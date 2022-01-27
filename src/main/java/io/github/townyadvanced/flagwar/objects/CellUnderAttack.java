@@ -17,9 +17,10 @@
 
 package io.github.townyadvanced.flagwar.objects;
 
-import com.gmail.filoghost.holographicdisplays.api.Hologram;
-import com.gmail.filoghost.holographicdisplays.api.HologramsAPI;
-import com.gmail.filoghost.holographicdisplays.api.line.TextLine;
+import me.filoghost.holographicdisplays.api.beta.hologram.Hologram;
+import me.filoghost.holographicdisplays.api.beta.HolographicDisplaysAPI;
+import me.filoghost.holographicdisplays.api.beta.hologram.VisibilitySettings;
+import me.filoghost.holographicdisplays.api.beta.hologram.line.TextHologramLine;
 import com.palmergames.bukkit.towny.object.Coord;
 import io.github.townyadvanced.flagwar.CellAttackThread;
 import io.github.townyadvanced.flagwar.FlagWar;
@@ -76,8 +77,8 @@ public class CellUnderAttack extends Cell {
     private Hologram hologram;
     /** Holds the time, in seconds, assuming 20 ticks is 1 second, of the war flag. */
     private Duration flagLifeTime;
-    /** Holds the {@link TextLine} of the hologram timer line. */
-    private TextLine timerLine;
+    /** Holds the {@link TextHologramLine} of the hologram timer line. */
+    private TextHologramLine timerLine;
 
     /**
      * Prepares the CellUnderAttack.
@@ -272,8 +273,8 @@ public class CellUnderAttack extends Cell {
 
     /**
      * Function to draw the {@link #hologram}. Retrieves hologram settings via
-     * {@link FlagWarConfig#getHologramSettings()}. Creates a new {@link #hologram} supplying the plugin instance with
-     * {@link FlagWar#getInstance()}, and a temporary {@link org.bukkit.Location} using the {@link #flagLightBlock}.
+     * {@link FlagWarConfig#getHologramSettings()}. Creates a new {@link #hologram} supplying the plugin instance and a
+     * temporary {@link org.bukkit.Location} using the {@link #flagLightBlock}.
      * Disables visibility. Then, iterates through the hologram settings, adding lines corresponding to the line
      * type and data. Finally, adjusts the location of the hologram according to the height of the {@link #hologram},
      * and enables its visibility.
@@ -281,8 +282,9 @@ public class CellUnderAttack extends Cell {
     public void drawHologram() {
         List<Map.Entry<String, String>> holoSettings = FlagWarConfig.getHologramSettings();
         Location loc = flagLightBlock.getLocation();
-        hologram = HologramsAPI.createHologram(FlagWar.getInstance(), loc);
-        hologram.getVisibilityManager().setVisibleByDefault(false);
+        hologram = HolographicDisplaysAPI.get(plugin).createHologram(loc);
+        VisibilitySettings visibility = hologram.getVisibilitySettings();
+        visibility.setGlobalVisibility(VisibilitySettings.Visibility.HIDDEN);
         for (Map.Entry<String, String> holoSetting : holoSettings) {
             var type = holoSetting.getKey();
             var data = holoSetting.getValue();
@@ -291,18 +293,18 @@ public class CellUnderAttack extends Cell {
                 case "item" -> {
                     Material material = Material.matchMaterial(data);
                     if (material != null) {
-                        hologram.appendItemLine(new ItemStack(material));
+                        hologram.getLines().appendItem(new ItemStack(material));
                     }
                 }
-                case "text" -> hologram.appendTextLine(data);
+                case "text" -> hologram.getLines().appendText(data);
                 case "timer" -> setTimerLine(data);
-                default -> hologram.appendTextLine("");
+                default -> hologram.getLines().appendText("");
             }
         }
         final double hOffset = 0.5d;
         final double vOffset = 0.9d;
-        hologram.teleport(loc.add(hOffset, vOffset + hologram.getHeight(), hOffset));
-        hologram.getVisibilityManager().setVisibleByDefault(true);
+        hologram.setPosition(loc.add(hOffset, vOffset + hologram.getPosition().getY(), hOffset));
+        visibility.setGlobalVisibility(VisibilitySettings.Visibility.VISIBLE);
     }
 
     /**
@@ -310,7 +312,7 @@ public class CellUnderAttack extends Cell {
      * @param data the value of a hologram setting (defined in {@link #drawHologram()}
      */
     private void setTimerLine(final String data) {
-        timerLine = hologram.appendTextLine(formatTime(flagLifeTime, data));
+        timerLine = hologram.getLines().appendText(formatTime(flagLifeTime, data));
     }
 
     /**
